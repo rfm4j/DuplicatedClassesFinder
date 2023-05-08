@@ -20,6 +20,7 @@ def search_files(path, exclude_patterns):
         for file in files:
             if file.endswith('.jar') or file.endswith('.war'):
                 file_path = os.path.join(root, file)
+                print(f'Searching in {file_path}')
                 update_class_dict(file_path, class_dict)
 
     return class_dict
