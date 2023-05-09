@@ -5,107 +5,85 @@
     <style>
         body {font-family: Arial, sans-serif; padding: 20px;}
         .hidden {display: none;}
+        .active-btn { background-color: #007bff; color: white;}
+        footer { margin-top: 50px; padding: 20px; background-color: #f8f9fa; text-align: center;}
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdn.datatables.net/1.10.22/js/jquery.dataTables.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.22/css/jquery.dataTables.min.css">
     <script>
         var data = JSON.parse('{json_data}');
 
-        function generateTableRows(data, keys) {
-            return data.map(function (item) {
-                return '<tr><td>' + item[keys[0]] + '</td><td>' + item[keys[1]].join('<br>') + '</td></tr>';
-            }).join('');
-        }
-
         function generateTable(id) {
-            var table, keys;
+            var dataSet, columns;
             if (id === '1') {
-                table = document.getElementById("resultTable1");
-                keys = ['class_name', 'jar_files'];
+                dataSet = data.classes_data.map(function (item) {
+                    return [item.class_name, item.jar_files.join('<br>')];
+                });
+                columns = [
+                    { title: "Class Name" },
+                    { title: "Files" }
+                ];
             } else {
-                table = document.getElementById("resultTable2");
-                keys = ['file_name', 'classes'];
+                dataSet = data.files_data.map(function (item) {
+                    return [item.file_name, item.classes.join('<br>')];
+                });
+                columns = [
+                    { title: "File Name" },
+                    { title: "Duplicated Classes" }
+                ];
             }
-            table.getElementsByTagName("tbody")[0].innerHTML = generateTableRows(data[id === '1' ? 'classes_data' : 'files_data'], keys);
-        }
-
-        function searchTable(id) {
-            var input, filter, table, tr, td, i, txtValue;
-            input = document.getElementById("searchInput" + id);
-            filter = input.value.toUpperCase();
-            table = document.getElementById("resultTable" + id);
-            tr = table.getElementsByTagName("tr");
-            for (i = 0; i < tr.length; i++) {
-                td = tr[i].getElementsByTagName("td")[0];
-                if (td) {
-                    txtValue = td.textContent || td.innerText;
-                    if (txtValue.toUpperCase().indexOf(filter) > -1) {
-                        tr[i].style.display = "";
-                    } else {
-                        tr[i].style.display = "none";
-                    }
-                }
-            }
+            $('#resultTable' + id).DataTable({
+                data: dataSet,
+                columns: columns,
+                destroy: true
+            });
         }
 
         function showTable(id) {
             var tableIds = ['1', '2'];
             tableIds.forEach(function (tableId) {
                 if (tableId === id) {
-                    document.getElementById("resultTable" + id).classList.remove("hidden");
-                    document.getElementById("searchInput" + id).classList.remove("hidden");
+                    document.getElementById("resultTable_wrapper" + id).classList.remove("hidden");
+                    document.getElementById("btn" + id).classList.add("active-btn");
                 } else {
-                    document.getElementById("resultTable" + tableId).classList.add("hidden");
-                    document.getElementById("searchInput" + tableId).classList.add("hidden");
+                    document.getElementById("resultTable_wrapper" + tableId).classList.add("hidden");
+                    document.getElementById("btn" + tableId).classList.remove("active-btn");
                 }
             });
         }
 
-        window.onload = function() {
+        $(document).ready(function() {
             generateTable('1');
             generateTable('2');
-        };
+            showTable('1');
+        });
     </script>
 </head>
 <body>
     <h1>Classes present in multiple .jar or .war files</h1>
-    <p>Generated on: {generation_time}</p>
-    <p>Script execution params: {execution_params}</p>
-    <p>Execution time: {execution_time} seconds</p>
-    <div class="mb-3">
-        <input type="text" id="searchInput1" onkeyup="searchTable('1')" placeholder="Search for class names.." class="form-control">
-        <input type="text" id="searchInput2" onkeyup="searchTable('2')" placeholder="Search for file names.." class="form-control hidden">
+    <div class="card mb-3">
+        <div class="card-body">
+            <h5 class="card-title">Script Execution Summary</h5>
+            <p class="card-text">Generated on: <strong>{generation_time}</strong></p>
+            <p class="card-text">Script execution params: <strong>{execution_params}</strong></p>
+            <p class="card-text">Execution time: <strong>{execution_time}</strong> seconds</p>
+        </div>
     </div>
     <div>
-        <button onclick="showTable('1')" class="btn btn-primary">Group by Class</button>
-        <button onclick="showTable('2')" class="btn btn-secondary">Group by File</button>
+        <button id="btn1" onclick="showTable('1')" class="btn btn-secondary active-btn">Group by Class</button>
+        <button id="btn2" onclick="showTable('2')" class="btn btn-secondary">Group by File</button>
     </div>
     <br>
-    <div id="resultTable1">
-                <!-- continue from previous -->
-                <table class="table table-striped table-bordered">
-                    <thead>
-                        <tr>
-                            <th>Class Name</th>
-                            <th>Files</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Data will be populated here -->
-                    </tbody>
-                </table>
+            <div id="resultTable_wrapper1" class="hidden">
+                <table id="resultTable1" class="table table-striped table-bordered" style="width:100%"></table>
             </div>
-            <div id="resultTable2" class="hidden">
-                <table class="table table-striped table-bordered">
-                    <thead>
-                        <tr>
-                            <th>File Name</th>
-                            <th>Duplicated Classes</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Data will be populated here -->
-                    </tbody>
-                </table>
+            <div id="resultTable_wrapper2" class="hidden">
+                <table id="resultTable2" class="table table-striped table-bordered" style="width:100%"></table>
             </div>
-        </body>
-        </html>
-        
+            <footer>
+                <p>&copy; {current_year} Company Name. Report generated by the Jar and War analyzer tool.</p>
+            </footer>
+    </body>
+    </html>
+    

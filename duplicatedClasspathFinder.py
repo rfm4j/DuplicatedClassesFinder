@@ -75,7 +75,6 @@ def generate_html_report(class_dict, template_path, output_file, execution_param
 
     generation_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     execution_time = round(time.time() - start_time, 2)
-    
     filled_html = html_template.replace('{json_data}', json_data) \
                                .replace('{generation_time}', generation_time) \
                                .replace('{execution_params}', ' '.join(execution_params)) \
