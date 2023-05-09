@@ -7,6 +7,7 @@ from io import BytesIO
 import time
 import sys
 from datetime import datetime
+import json
 
 
 def search_files(path, exclude_patterns):
@@ -66,11 +67,16 @@ def generate_html_report(class_dict, template_path, output_file, execution_param
         class_list = '<br>'.join(classes)
         table_rows_by_file += f'<tr><td>{file_name}</td><td>{class_list}</td></tr>'
 
+    classes_data = [{'class_name': class_name, 'jar_files': list(jar_files)} for class_name, jar_files in class_dict.items() if len(jar_files) > 1]
+    files_data = [{'file_name': file_name, 'classes': list(classes)} for file_name, classes in file_dict.items()]
+
+    # Convert the data to JSON
+    json_data = json.dumps({'classes_data': classes_data, 'files_data': files_data})
+
     generation_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     execution_time = round(time.time() - start_time, 2)
-
-    filled_html = html_template.replace('{table_rows_by_class}', table_rows_by_class) \
-                               .replace('{table_rows_by_file}', table_rows_by_file) \
+    
+    filled_html = html_template.replace('{json_data}', json_data) \
                                .replace('{generation_time}', generation_time) \
                                .replace('{execution_params}', ' '.join(execution_params)) \
                                .replace('{execution_time}', str(execution_time))

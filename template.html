@@ -7,6 +7,26 @@
         .hidden {display: none;}
     </style>
     <script>
+        var data = JSON.parse('{json_data}');
+
+        function generateTableRows(data, keys) {
+            return data.map(function (item) {
+                return '<tr><td>' + item[keys[0]] + '</td><td>' + item[keys[1]].join('<br>') + '</td></tr>';
+            }).join('');
+        }
+
+        function generateTable(id) {
+            var table, keys;
+            if (id === '1') {
+                table = document.getElementById("resultTable1");
+                keys = ['class_name', 'jar_files'];
+            } else {
+                table = document.getElementById("resultTable2");
+                keys = ['file_name', 'classes'];
+            }
+            table.getElementsByTagName("tbody")[0].innerHTML = generateTableRows(data[id === '1' ? 'classes_data' : 'files_data'], keys);
+        }
+
         function searchTable(id) {
             var input, filter, table, tr, td, i, txtValue;
             input = document.getElementById("searchInput" + id);
@@ -38,6 +58,11 @@
                 }
             });
         }
+
+        window.onload = function() {
+            generateTable('1');
+            generateTable('2');
+        };
     </script>
 </head>
 <body>
@@ -55,30 +80,32 @@
     </div>
     <br>
     <div id="resultTable1">
-        <table class="table table-striped table-bordered">
-            <thead>
-                <tr>
-                    <th>Class Name</th>
-                    <th>Files</th>
-                </tr>
-            </thead>
-            <tbody>
-                {table_rows_by_class}
-            </tbody>
-        </table>
-    </div>
-    <div id="resultTable2" class="hidden">
-        <table class="table table-striped table-bordered">
-            <thead>
-                <tr>
-                    <th>File Name</th>
-                    <th>Duplicated Classes</th>
-                </tr>
-            </thead>
-            <tbody>
-                {table_rows_by_file}
-            </tbody>
-        </table>
-    </div>
-</body>
-</html>    
+                <!-- continue from previous -->
+                <table class="table table-striped table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Class Name</th>
+                            <th>Files</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Data will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+            <div id="resultTable2" class="hidden">
+                <table class="table table-striped table-bordered">
+                    <thead>
+                        <tr>
+                            <th>File Name</th>
+                            <th>Duplicated Classes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Data will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </body>
+        </html>
+        
