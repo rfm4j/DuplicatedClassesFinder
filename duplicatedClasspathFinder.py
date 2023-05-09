@@ -10,7 +10,7 @@ from datetime import datetime
 
 
 def search_files(path, exclude_patterns):
-    class_dict = defaultdict(list)
+    class_dict = defaultdict(set)
 
     for root, dirs, files in os.walk(path):
         if exclude_patterns:
@@ -31,7 +31,7 @@ def update_class_dict(file_path, class_dict):
             for name in zfile.namelist():
                 if name.endswith('.class'):
                     class_name = name.replace('/', '.')
-                    class_dict[class_name].append(file_path)
+                    class_dict[class_name].add(os.path.basename(file_path))
                 elif name.endswith('.jar'):
                     nested_jar = BytesIO(zfile.read(name))
                     process_jar(nested_jar, f"{file_path}/{name}")
@@ -40,6 +40,7 @@ def update_class_dict(file_path, class_dict):
         jar_bytes = BytesIO(f.read())
 
     process_jar(jar_bytes, file_path)
+
 
 def generate_html_report(class_dict, template_path, output_file, execution_params, start_time):
     with open(template_path, 'r') as f:
