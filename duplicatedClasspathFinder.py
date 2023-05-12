@@ -1,108 +1,67 @@
 import os
-import re
 import zipfile
 import argparse
 from collections import defaultdict
-from io import BytesIO
-import time
-import sys
-from datetime import datetime
 import json
 
+def find_duplicate_classes(directory):
+    jar_dict = defaultdict(lambda: {"classes": set(), "paths": set()})
 
-def search_files(path, exclude_patterns):
-    class_dict = defaultdict(set)
-
-    for root, dirs, files in os.walk(path):
-        if exclude_patterns:
-            dirs[:] = [d for d in dirs if not any(re.match(pattern, d) for pattern in exclude_patterns)]
-            files = [f for f in files if not any(re.match(pattern, f) for pattern in exclude_patterns)]
-
+    for root, dirs, files in os.walk(directory):
         for file in files:
-            if file.endswith('.jar') or file.endswith('.war'):
+            if file.endswith('.jar'):
                 file_path = os.path.join(root, file)
-                print(f'Searching in {file_path}')
-                update_class_dict(file_path, class_dict)
+                with zipfile.ZipFile(file_path, 'r') as zip_ref:
+                    for name in zip_ref.namelist():
+                        if name.endswith('.class'):
+                            class_name = name.replace('/', '.').replace('.class', '')
+                            jar_dict[file]["classes"].add(class_name)
+                            jar_dict[file]["paths"].add(file_path)
 
-    return class_dict
+    duplicate_jars = {jar_file: details for jar_file, details in jar_dict.items() if len(details["classes"]) > 1}
+    return duplicate_jars
 
-def update_class_dict(file_path, class_dict):
-    def process_jar(jar_bytes, file_path):
-        with zipfile.ZipFile(jar_bytes, 'r') as zfile:
-            for name in zfile.namelist():
-                if name.endswith('.class'):
-                    class_name = name.replace('/', '.')
-                    class_dict[class_name].add(os.path.basename(file_path))
-                elif name.endswith('.jar'):
-                    nested_jar = BytesIO(zfile.read(name))
-                    process_jar(nested_jar, f"{file_path}/{name}")
+def generate_html_report(duplicate_jars, output_file):
+    total_jars = len(duplicate_jars)
+    total_classes = sum(len(details["classes"]) for details in duplicate_jars.values())
+    total_jars_with_duplicates = len(duplicate_jars)
 
-    with open(file_path, 'rb') as f:
-        jar_bytes = BytesIO(f.read())
+    summary = f"Total analyzed JARs: {total_jars}<br>" \
+              f"Total analyzed classes: {total_classes}<br>" \
+              f"Total JARs with some duplicated classes: {total_jars_with_duplicates}"
 
-    process_jar(jar_bytes, file_path)
+    if not duplicate_jars:
+        table_rows = "<tr><td colspan='3'>No duplicate classes found.</td></tr>"
+    else:
+        table_rows = ""
+        for jar_file, details in duplicate_jars.items():
+            classes = "<br>".join(details["classes"])
+            paths = "<br>".join(details["paths"])
+            table_rows += f"""
+            <tr>
+                <td>{jar_file}</td>
+                <td>{classes}</td>
+                <td>{paths}</td>
+            </tr>
+            """
 
-
-def generate_html_report(class_dict, template_path, output_file, execution_params, start_time):
-    with open(template_path, 'r') as f:
+    with open("template.html", "r") as f:
         html_template = f.read()
 
-    table_rows_by_class = ''
-    table_rows_by_file = ''
+    filled_template = html_template.replace("{summary}", summary).replace("{table_rows}", table_rows)
 
-    # Group by class
-    for class_name, jar_files in class_dict.items():
-        if len(jar_files) > 1:
-            jar_files_list = '<br>'.join(jar_files)
-            table_rows_by_class += f'<tr><td>{class_name}</td><td>{jar_files_list}</td></tr>'
+    with open(output_file, "w") as f:
+        f.write(filled_template)
 
-    # Group by file
-    file_dict = defaultdict(set)
-    for class_name, jar_files in class_dict.items():
-        if len(jar_files) > 1:
-            for jar_file in jar_files:
-                file_dict[jar_file].add(class_name)
+# Parse command line arguments
+parser = argparse.ArgumentParser(description='Find duplicate classes in JAR files.')
+parser.add_argument('--dir', required=True, help='The directory path containing JAR files.')
+parser.add_argument('--output', default='report.html', help='The output HTML report file.')
+args = parser.parse_args()
 
-    for file_name, classes in file_dict.items():
-        class_list = '<br>'.join(classes)
-        table_rows_by_file += f'<tr><td>{file_name}</td><td>{class_list}</td></tr>'
+# Generate HTML report
+directory_path = args.dir
+output_file = args.output
 
-    classes_data = [{'class_name': class_name, 'jar_files': list(jar_files)} for class_name, jar_files in class_dict.items() if len(jar_files) > 1]
-    files_data = [{'file_name': file_name, 'classes': list(classes)} for file_name, classes in file_dict.items()]
-
-    # Convert the data to JSON
-    json_data = json.dumps({'classes_data': classes_data, 'files_data': files_data})
-
-    generation_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    execution_time = round(time.time() - start_time, 2)
-    filled_html = html_template.replace('{json_data}', json_data) \
-                               .replace('{generation_time}', generation_time) \
-                               .replace('{execution_params}', ' '.join(execution_params)) \
-                               .replace('{execution_time}', str(execution_time))
-
-    with open(output_file, 'w') as f:
-        f.write(filled_html)
-
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Find the .jar and .war files containing classes in a directory.')
-    parser.add_argument('--dir', required=True, help='The directory path to search in.')
-    parser.add_argument('--exclude', action='append', help='A regex pattern to exclude directories/files. Can be provided multiple times.')
-    parser.add_argument('--output', default='report.html', help='The output HTML report file.')
-    args = parser.parse_args()
-
-    directory_path = args.dir
-    exclude_patterns = args.exclude if args.exclude else []
-    output_file = args.output
-
-    start_time = time.time()
-
-    class_dict = search_files(directory_path, exclude_patterns)
-
-    script_dir = os.path.dirname(os.path.realpath(__file__))
-    template_path = os.path.join(script_dir, 'template.html')
-
-    generate_html_report(class_dict, template_path, output_file, sys.argv[1:], start_time)
-    print(f"HTML report generated: {output_file}")
-
+duplicate_jars = find_duplicate_classes(directory_path)
+generate_html_report(duplicate_jars, output_file)
